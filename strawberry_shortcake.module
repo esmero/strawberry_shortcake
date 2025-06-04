@@ -1,0 +1,9 @@
+<?php
+/**
+ * @file
+ * Contains strawberryfield.module.
+ */
+
+use Drupal\Core\Utility\Error as ErrorAlias;
+use Drupal\search_api\Entity\Index;
+

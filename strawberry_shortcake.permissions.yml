@@ -1,0 +1,3 @@
+'execute ML clustering':
+  title: 'Allows Clusters to be generated. Requires Create Content Too'
+  description: 'Only users with this permission will have ML Clustering capabilities. For security/performance reasons, this permission has no effect on Anonymous Users.'

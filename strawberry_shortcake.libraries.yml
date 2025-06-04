@@ -1,0 +1,9 @@
+clustering_strawberry_shortcake:
+  version: 1.0
+  js:
+    js/cluster_ui.js: {minified: false}
+  dependencies:
+    - core/drupal
+    - core/once
+    - core/drupal.form
+    - core/drupalSettings

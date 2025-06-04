@@ -1,0 +1,49 @@
+# Persist in temporary (rainbow whipped cream) limbo a Cluster member.
+strawberryfield_shortcake.post_add_cluster_member:
+  path: '/do/{node}/webannon/clustersbf/postadd'
+  methods: [POST]
+  defaults:
+    _controller: '\Drupal\strawberry_shortcake\Controller\ClusterAnnotationController::postAddToCluster'
+  options:
+    parameters:
+      node:
+        type: 'entity:node'
+      resource_type:
+        type: 'ado'
+  requirements:
+    _format: 'json'
+    _entity_access: 'node.update'
+    _permission: 'execute ML clustering'
+# Delete from temporary (rainbow whipped cream) limbo a Cluster member.
+strawberryfield_shortcake.post_delete_cluster_member:
+  path: '/do/{node}/webannon/clustersbf/postdelete'
+  methods: [POST]
+  defaults:
+    _controller: '\Drupal\strawberry_shortcake\Controller\ClusterAnnotationController::postDeleteFromCluster'
+  options:
+    parameters:
+      node:
+        type: 'entity:node'
+      resource_type:
+        type: 'ado'
+  requirements:
+    _format: 'json'
+    _entity_access: 'node.update'
+    _permission: 'execute ML clustering'
+
+# Get from temporary (rainbow whipped cream) limbo a Cluster member's info.
+strawberryfield_shortcake.post_get_cluster_membe_info:
+  path: '/do/{node}/webannon/clustersbf/postgetinfo'
+  methods: [POST]
+  defaults:
+    _controller: '\Drupal\strawberry_shortcake\Controller\ClusterAnnotationController::postGetClusterMemberInfo'
+  options:
+    parameters:
+      node:
+        type: 'entity:node'
+      resource_type:
+        type: 'ado'
+  requirements:
+    _format: 'json'
+    _entity_access: 'node.view'
+    _permission: 'execute ML clustering'

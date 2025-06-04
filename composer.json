@@ -1,0 +1,24 @@
+{
+    "name": "strawberryfield/strawberry_shortcake",
+    "description": "Clusters of Strawberries to give insipid ML some flavor (and some use). Made for Drupal 10/11 and Archipelago Commons",
+    "license": "GPL-2.0+",
+    "type": "drupal-module",
+    "homepage": "https://github.com/esmero/strawberry_shortcake",
+    "authors": [
+        {
+            "name": "Diego Pino Navarro",
+            "email": "dpino@metro.org",
+            "homepage": "https://github.com/DiegoPino",
+            "role": "Owner"
+        }
+    ],
+    "require": {
+        "strawberryfield/strawberryfield":"1.5.0.x-dev",
+        "strawberryfield/format_strawberryfield":"1.5.0.x-dev",
+        "strawberryfield/strawberry_runners":"0.9.0.x-dev",
+        "ext-json": "*"
+    },
+    "conflict": {
+        "drupal/core":"<10.4"
+    }
+}

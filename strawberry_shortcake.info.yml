@@ -1,0 +1,13 @@
+name: Strawberry Shortcake
+description: Provides Clustering/ML aided Cataloging to Archipelago
+package: Archipelago
+type: module
+core_version_requirement: ^10 || ^11
+php: 8
+dependencies:
+  - 'drupal:views'
+  - 'strawberryfield'
+  - 'strawberry_runners'
+  - 'format_strawberryfield'
+  - 'search_api_solr'
+  - 'views_bulk_operations'
