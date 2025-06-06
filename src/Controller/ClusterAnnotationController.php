@@ -333,7 +333,7 @@ class ClusterAnnotationController extends ControllerBase {
         try {
           $active_cluster = $this->tempStorePrivate->get('active_cluster') ?? [];
           $active_cluster_uuid = $active_cluster['uuid'] ?? NULL;
-          $cluster_member_info = $this->tempStoreShared->get($flavorid);
+          $cluster_member_info = $this->tempStoreShared->get($flavorid) ?? [];
           $all_clusters = $this->tempStoreShared->get('all_clusters') ?? [];
           $all_clusters = array_flip($all_clusters);
           $incurrentcluster =  FALSE;
