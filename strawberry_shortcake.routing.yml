@@ -47,3 +47,12 @@ strawberryfield_shortcake.post_get_cluster_membe_info:
     _format: 'json'
     _entity_access: 'node.view'
     _permission: 'execute ML clustering'
+strawberryfield_shortcake.cluster_centroids:
+  path: '/ml/clustersbf/{cluster}/cluster_centroids'
+  methods: [GET, POST]
+  defaults:
+    _controller: '\Drupal\strawberry_shortcake\Controller\ClusterAnnotationController::calculateCentroids'
+  requirements:
+    cluster: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|active"
+    _format: 'json'
+    _permission: 'execute ML clustering'
