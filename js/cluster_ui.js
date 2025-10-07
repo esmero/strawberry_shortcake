@@ -147,4 +147,18 @@
       });
     }
   }
+
+  /* @see \Drupal\strawberry_shortcake\Ajax\SbsBroadcastVectors */
+  Drupal.AjaxCommands.prototype.SbsBroadCastVectors = function (ajax, response) {
+   console.log(response.vectors);
+    const vector_data = {
+      "vectors":response.vectors,
+    }
+    const element = document.querySelector('body');
+    console.log(JSON.stringify(vector_data).length);
+    console.log(btoa(pako.gzip(JSON.stringify(vector_data))).length);
+    console.log(pako.gzip(JSON.stringify(vector_data)).length);
+    Drupal.FormatStrawberryfieldIiifUtils.dispatchImageViewChange(element, btoa(pako.gzip(JSON.stringify(vector_data))));
+  }
+
 })(jQuery, Drupal, once);
