@@ -7,6 +7,7 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Drupal\Core\TempStore\SharedTempStoreFactory;
+use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Ajax\AjaxResponse;
@@ -117,6 +118,30 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
           ':input[name="shortcake_active_cluster"]' => ['value' => ''],
         ],
       ],
+    ];
+  /*
+   * To send a single Vector, we would use something like this
+    $form['centroid'] = [
+      '#type' => 'html_tag',
+      '#tag' => 'a',
+      '#value' => "Centroid",
+      '#attributes' => [
+        'class' => ['btn' ,'btn-tertiary'],
+        'data-sbf-vector' => json_encode($avector$}
+        'data-sbf-vector-processor' => 'chained_mobilenet_child'
+      ]
+    ];*/
+
+    $form['centroid'] = [
+      '#type' => 'submit',
+      '#value' => "Calculate Centroid for Active Cluster",
+      '#ajax' => [
+        'callback' => 'Drupal\strawberry_shortcake\Controller\ClusterAnnotationController::calculateCentroids',
+        'url' =>  Url::fromRoute('strawberryfield_shortcake.cluster_centroids',['cluster' => 'active']),
+      ],
+      '#attributes' => [
+        'class' => ['btn' ,'btn-tertiary'],
+      ]
     ];
 
     $form['actions']['#type'] = 'actions';
