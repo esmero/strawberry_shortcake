@@ -11,6 +11,7 @@ use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\strawberry_shortcake\Controller\ClusterAnnotationController;
 
 /**
  * Builds the basic UI for Administering Clusters
@@ -75,7 +76,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
     $active_cluster_label = $form_state->getValue('active_cluster') ?? NULL;
     if (isset($active_cluster['label']) && isset($active_cluster['uuid'])) {
       $active_cluster_label = $active_cluster['label'];
-      $cluster_members = $this->tempStoreShared->get("cluster:".$active_cluster['uuid']) ?? [];
+      $cluster_members = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get("cluster:".$active_cluster['uuid']) ?? [];
       $cluster_count = count($cluster_members);
     }
     $active_cluster_label_count = $active_cluster_label ? "true" : "false";
@@ -93,7 +94,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
         'class' => ['container-inline btn button btn-secondary position-relative'],
       ],
     ];
-    $all_clusters = $this->tempStoreShared->get('all_clusters') ?? [];
+    $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
     $all_clusters_options = array_combine(array_keys($all_clusters), array_keys($all_clusters));
     $form['shortcake_active_cluster'] = [
       '#type' => 'select',
@@ -191,7 +192,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    */
   public function submitFormCreate(array &$form, FormStateInterface $form_state) {
-    $all_clusters = $this->tempStoreShared->get('all_clusters') ?? [];
+    $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
     $cluster_label = trim(($form_state->getValue('new_cluster') ?? ''));
     if (in_array($cluster_label, array_keys($all_clusters))) {
       $cluster_data = ['label' => $cluster_label, 'uuid' => $all_clusters[$cluster_label]];
@@ -204,7 +205,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
       $all_clusters = $all_clusters + [$cluster_data['label'] => $cluster_data['uuid']];
     }
     $this->tempStorePrivate->set('active_cluster', $cluster_data);
-    $this->tempStoreShared->set('all_clusters', $all_clusters);
+    $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->set('all_clusters', $all_clusters);
     $form_state->setValue('shortcake_active_cluster', $cluster_data['label']);
     $form_state->setRebuild();
   }
@@ -214,7 +215,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    */
   public function selectFormCreate(array &$form, FormStateInterface $form_state) {
-    $all_clusters = $this->tempStoreShared->get('all_clusters') ?? [];
+    $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
     $cluster_label = $form_state->getValue('shortcake_active_cluster') ?? NULL;
     if ($cluster_label && in_array($cluster_label, array_keys($all_clusters))) {
       $cluster_data = ['label' => $cluster_label, 'uuid' => $all_clusters[$cluster_label]];

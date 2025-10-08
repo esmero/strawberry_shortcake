@@ -2,45 +2,34 @@
 
 namespace Drupal\strawberry_shortcake\Controller;
 
-use Drupal\Component\Plugin\Exception\PluginException;
-use Drupal\Component\Uuid\Uuid;
 use Drupal\Core\Ajax\MessageCommand;
 use Drupal\Core\Controller\ControllerBase;
 use Drupal\Core\Entity\ContentEntityInterface;
-use Drupal\Core\Entity\Element\EntityAutocomplete;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
-use Drupal\Core\Messenger\MessengerInterface;
 use Drupal\Core\Render\RendererInterface;
 use Drupal\Core\TempStore\SharedTempStoreFactory;
-use Drupal\format_strawberryfield_views\Ajax\SbfSetBrowserUrl;
 use Drupal\search_api\Query\QueryInterface;
-use Drupal\search_api\SearchApiException;
-use Drupal\strawberryfield\Plugin\Field\FieldType\StrawberryFieldItem;
 use Drupal\strawberryfield\Plugin\search_api\datasource\StrawberryfieldFlavorDatasource;
 use Drupal\strawberryfield\StrawberryfieldUtilityService;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Mime\MimeTypeGuesserInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Drupal\Core\Cache\CacheableJsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Component\HttpKernel\Exception\MethodNotAllowedHttpException;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Drupal\search_api\ParseMode\ParseModePluginManager;
 use Drupal\Core\Ajax\AjaxResponse;
-use Drupal\Core\Ajax\RemoveCommand;
-use Drupal\Core\Ajax\ReplaceCommand;
-use Drupal\Core\Ajax\RedirectCommand;
-use Drupal\Core\Form\FormStateInterface;
-use Drupal\node\Entity\Node;
-use Drupal\Core\Url;
+use Drupal\Core\KeyValueStore\KeyValueFactoryInterface;
+
 use Drupal\strawberry_shortcake\Ajax\SbsBroadcastVectors;
 
 class ClusterAnnotationController extends ControllerBase {
 
+
+  const SBS_CLUSTER_ITEMS_COLLECTION = 'Strawberry_shortcake_flavor_temp';
+
+  const SBS_CLUSTERS_COLLECTION = 'Strawberry_shortcake_all_clusters';
   /**
    * Symfony\Component\HttpFoundation\RequestStack definition.
    *
@@ -84,6 +73,13 @@ class ClusterAnnotationController extends ControllerBase {
   protected $tempStorePrivate;
 
   /**
+   * Key value service.
+   *
+   * @var \Drupal\Core\KeyValueStore\KeyValueFactoryInterface
+   */
+  protected $keyValue;
+
+  /**
    * The parse mode manager.
    *
    * @var \Drupal\search_api\ParseMode\ParseModePluginManager
@@ -114,7 +110,8 @@ class ClusterAnnotationController extends ControllerBase {
     MimeTypeGuesserInterface $mime_type_guesser,
     SharedTempStoreFactory $temp_store_factory,
     PrivateTempStoreFactory $private_temp_store_factory,
-    ParseModePluginManager $parse_mode_manager
+    ParseModePluginManager $parse_mode_manager,
+    KeyValueFactoryInterface $keyValue
   ) {
     $this->requestStack = $request_stack;
     $this->strawberryfieldUtility = $strawberryfield_utility_service;
@@ -124,6 +121,7 @@ class ClusterAnnotationController extends ControllerBase {
     $this->tempStoreShared = $temp_store_factory->get('strawberry_shortcake');
     $this->tempStorePrivate = $private_temp_store_factory->get('strawberry_shortcake_private');
     $this->parseModeManager = $parse_mode_manager;
+    $this->keyValue = $keyValue;
   }
 
   /**
@@ -139,6 +137,7 @@ class ClusterAnnotationController extends ControllerBase {
       $container->get('tempstore.shared'),
       $container->get('tempstore.private'),
       $container->get('plugin.manager.search_api.parse_mode'),
+      $container->get('strawberryfield.keyvalue.database')
     );
   }
 
@@ -173,10 +172,10 @@ class ClusterAnnotationController extends ControllerBase {
             // We do two things (old-fashioned double hash.)
             // - We store, per cluster all member ids.
             // - We store the actual member id holding all clusters it belongs to.
-            $cluster_members = $this->tempStoreShared->get("cluster:" . $active_cluster['uuid']) ?? [];
+            $cluster_members = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get("cluster:" . $active_cluster['uuid']) ?? [];
             $cluster_members[$flavorid] = TRUE;
             $cluster_count = count($cluster_members);
-            $cluster_member_info = $this->tempStoreShared->get($flavorid) ?? [];
+            $cluster_member_info = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get($flavorid) ?? [];
             // Foreach Cluster UUID (I am  not silly to think, I can use the label as ID! but we enforce labels to be unique too)
             // We store the update time too. Might be handy?
             $otherclusters = [];
@@ -187,9 +186,8 @@ class ClusterAnnotationController extends ControllerBase {
             }
             $cluster_member_info[$active_cluster['uuid']] = \Drupal::time()
               ->getRequestTime();
-            $this->tempStoreShared->set("cluster:" . $active_cluster['uuid'], $cluster_members);
-            $this->tempStoreShared->set($flavorid, $cluster_member_info);
-
+            $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->set("cluster:" . $active_cluster['uuid'], $cluster_members);
+            $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->set($flavorid, $cluster_member_info);
             $data = [
               'incurrentcluster' => TRUE,
               'otherclusters' => $otherclusters,
@@ -253,23 +251,23 @@ class ClusterAnnotationController extends ControllerBase {
             // We do two things (old-fashioned double hash.)
             // - We store, per cluster all member ids.
             // - We store the actual member id holding all clusters it belongs to.
-            $cluster_members = $this->tempStoreShared->get("cluster:" . $active_cluster['uuid']) ?? [];
+            $cluster_members = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get("cluster:" . $active_cluster['uuid']) ?? [];
             unset($cluster_members[$flavorid]);
             $cluster_count = count($cluster_members);
-            $cluster_member_info = $this->tempStoreShared->get($flavorid) ?? [];
+            $cluster_member_info = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get($flavorid) ?? [];
             // Foreach Cluster UUID (I am  not silly to think, I can use the label as ID! but we enforce labels to be unique too)
             // We store the update time too. Might be handy?
             unset($cluster_member_info[$active_cluster['uuid']]);
             if (!count($cluster_member_info)) {
-              $this->tempStoreShared->delete($flavorid);
+              $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->delete($flavorid);
             }
             else {
-              $this->tempStoreShared->set($flavorid, $cluster_member_info);
+              $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->set($flavorid, $cluster_member_info);
             }
-            $this->tempStoreShared->set("cluster:" . $active_cluster['uuid'], $cluster_members);
+            $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->set("cluster:" . $active_cluster['uuid'], $cluster_members);
 
             $otherclusters = [];
-            $all_clusters = $this->tempStoreShared->get('all_clusters') ?? [];
+            $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
             $all_clusters = array_flip($all_clusters);
             foreach ($cluster_member_info as $uuid => $timestamp) {
               $otherclusters[] = $all_clusters[$uuid];
@@ -337,8 +335,8 @@ class ClusterAnnotationController extends ControllerBase {
         try {
           $active_cluster = $this->tempStorePrivate->get('active_cluster') ?? [];
           $active_cluster_uuid = $active_cluster['uuid'] ?? NULL;
-          $cluster_member_info = $this->tempStoreShared->get($flavorid) ?? [];
-          $all_clusters = $this->tempStoreShared->get('all_clusters') ?? [];
+          $cluster_member_info = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get($flavorid) ?? [];
+          $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
           $all_clusters = array_flip($all_clusters);
           $incurrentcluster = FALSE;
           $otherclusters = [];
@@ -387,7 +385,7 @@ class ClusterAnnotationController extends ControllerBase {
           // We do two things (old-fashioned double hash.)
           // - We store, per cluster all member ids.
           // - We store the actual member id holding all clusters it belongs to.
-          $cluster_members = $this->tempStoreShared->get("cluster:" . $active_cluster['uuid']) ?? [];
+          $cluster_members = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get("cluster:" . $active_cluster['uuid']) ?? [];
           $cluster_members = array_filter($cluster_members);
           $cluster_members = array_keys($cluster_members);
           $cluster_members_chunked = array_chunk($cluster_members, 25, TRUE);
@@ -395,10 +393,11 @@ class ClusterAnnotationController extends ControllerBase {
           foreach ($cluster_members_chunked as $cluster_member_chunk) {
             $vectors_from_flavor = $this->flavorVectorfromSolrIndex([], [], [], [], $cluster_member_chunk, 0, 25);
             foreach ($vectors_from_flavor as $processor_id => $vectors) {
-              $size_by_processor_id[$processor_id] = $size_by_processor_id[$processor_id] ?? count($vectors[0] ?? []);
+              $size_by_processor_id[$processor_id] = $size_by_processor_id[$processor_id] ?? count(reset($vectors) ?? []);
               $count_by_processor[$processor_id] = $count_by_processor[$processor_id] ?? 0;
               $sum_by_processor[$processor_id] = $sum_by_processor[$processor_id] ?? [];
               $this->sumVectors($vectors, $size_by_processor_id[$processor_id], $count_by_processor[$processor_id], $sum_by_processor[$processor_id]);
+              $mediodBestCandidate[$processor_id] = $this->mediodVectors($vectors, $size_by_processor_id[$processor_id]);
             }
           }
           foreach ($sum_by_processor as $processor_id => $summed_vector) {
@@ -414,7 +413,7 @@ class ClusterAnnotationController extends ControllerBase {
       else {
         // we don't need the cluster label/extra info here, just the members, if any and exists..
         if (\Drupal\Component\Uuid\Uuid::isValid($cluster)) {
-          $cluster_members = $this->tempStoreShared->get("cluster:" . $cluster) ?? [];
+          $cluster_members = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get("cluster:" . $cluster) ?? [];
           $cluster_members = array_filter($cluster_members);
           $cluster_members = array_keys($cluster_members);
           $cluster_members_chunked = array_chunk($cluster_members, 25, TRUE);
@@ -461,6 +460,43 @@ class ClusterAnnotationController extends ControllerBase {
     }
   }
 
+  private function euclideanDistance(array $vector1, array $vector2, int $dimension):float {
+    $sum = 0.0;
+    for ($i = 0; $i < $dimension; $i++) {
+      $diff = $vector1[$i] - $vector2[$i];
+      $sum += $diff * $diff;
+    }
+    return sqrt($sum);
+  }
+
+
+  private function mediodVectors(array $vectors, $dimension = 512) {
+    $foundMediod = null;
+    $foundOutlier = null;
+    $minTotalDistance = INF;
+    $maxTotalDistance = 0.0;
+    foreach ($vectors as $candidateID => $candidateMedoid) {
+      $totalDistance = 0.0;
+      foreach ($vectors as $vectorID => $vector) {
+        // If i compare the candidate against itself then distance is 0. Useless computing.
+       if ($candidateID != $vectorID) {
+         $totalDistance += $this->euclideanDistance($candidateMedoid, $vector, $dimension);
+       }
+      }
+      if ($totalDistance < $minTotalDistance) {
+        $minTotalDistance = $totalDistance;
+        $foundMediod = $candidateID;
+      }
+      if ($totalDistance > $maxTotalDistance) {
+        // Also return the one more far away from all others.
+        $maxTotalDistance = $totalDistance;
+        $foundOutlier = $candidateID;
+      }
+    }
+
+    return [$foundMediod,$foundOutlier];
+  }
+
   /**
    * Fetches Flavors from the backend and converts them to Annotations
    *
@@ -483,7 +519,7 @@ class ClusterAnnotationController extends ControllerBase {
     $indexes = StrawberryfieldFlavorDatasource::getValidIndexes();
 
     /* @var \Drupal\search_api\IndexInterface[] $indexes */
-
+    $vectors_by_flavor = [];
     $result_snippets = [];
     $search_result = [];
     $annotations = [];
@@ -620,7 +656,9 @@ class ClusterAnnotationController extends ControllerBase {
               if (str_starts_with($field->getType(), 'densevector_') === TRUE) {
                 $value = $field->getValues();
                 if (count($value) > 0) {
-                  $vectors_by_flavor[$processor_id][] = $value;
+                  // return as key the result id, since for medoid we
+                  // really need to say "this doc" respresents it better.
+                  $vectors_by_flavor[$processor_id][$result->getId()] = $value;
                   continue;
                 }
               }
@@ -633,13 +671,6 @@ class ClusterAnnotationController extends ControllerBase {
     return $vectors_by_flavor;
   }
 
-  private function euclideanDistance(array $vector1, array $vector2, int $dimension):float {
-    $sum = 0.0;
-    for ($i = 0; $i < $dimension; $i++) {
-      $diff = $vector1[$i] - $vector1[$i];
-      $sum += $diff * $diff;
-    }
-    return sqrt($sum);
-  }
+
 
 }
