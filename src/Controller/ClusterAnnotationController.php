@@ -179,7 +179,7 @@ class ClusterAnnotationController extends ControllerBase {
             // Foreach Cluster UUID (I am  not silly to think, I can use the label as ID! but we enforce labels to be unique too)
             // We store the update time too. Might be handy?
             $otherclusters = [];
-            $all_clusters = $this->tempStoreShared->get('all_clusters') ?? [];
+            $all_clusters =  $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
             $all_clusters = array_flip($all_clusters);
             foreach ($cluster_member_info as $uuid => $timestamp) {
               $otherclusters[] = $all_clusters[$uuid];
@@ -333,8 +333,15 @@ class ClusterAnnotationController extends ControllerBase {
       }
       else {
         try {
-          $active_cluster = $this->tempStorePrivate->get('active_cluster') ?? [];
-          $active_cluster_uuid = $active_cluster['uuid'] ?? NULL;
+          // IF POST passes explicitly a active cluster UUID, we use that instead of the "live session" one
+          // e.g This is needed when managing cluster from Manager Cluster Form.
+          if (!empty($everything['cluster_uuid'])) {
+            $active_cluster_uuid = $everything['cluster_uuid'];
+          }
+          else {
+            $active_cluster = $this->tempStorePrivate->get('active_cluster') ?? [];
+            $active_cluster_uuid = $active_cluster['uuid'] ?? NULL;
+          }
           $cluster_member_info = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get($flavorid) ?? [];
           $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
           $all_clusters = array_flip($all_clusters);
@@ -471,6 +478,7 @@ class ClusterAnnotationController extends ControllerBase {
 
 
   private function mediodVectors(array $vectors, $dimension = 512) {
+    // @see https://pure.tudelft.nl/ws/portalfiles/portal/150383726/978_3_031_26387_3_10.pdf;
     $foundMediod = null;
     $foundOutlier = null;
     $minTotalDistance = INF;

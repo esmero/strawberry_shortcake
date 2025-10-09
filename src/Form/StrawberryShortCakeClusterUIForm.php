@@ -210,6 +210,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
     $this->tempStorePrivate->set('active_cluster', $cluster_data);
     $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->set('all_clusters', $all_clusters);
     $form_state->setValue('shortcake_active_cluster', $cluster_data['label']);
+    $form_state->setValue('shortcake_active_cluster_uuid', $cluster_data['uuid']);
     $form_state->setRebuild();
   }
 
@@ -266,9 +267,9 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
     $selector = '#strawberry-shortcake_ui-form-wrapper';
     $response = new AjaxResponse();
     $response->addCommand(new HtmlCommand($selector, $form));
-    $cluster_label = $form_state->getValue('shortcake_active_cluster') ?? NULL;
-    if ($cluster_label) {
-      $response->addCommand(new SbsUpdateClusterMemberInfo($cluster_label));
+    $cluster_uuid = $form_state->getValue('shortcake_active_cluster_uuid') ?? NULL;
+    if ($cluster_uuid) {
+      $response->addCommand(new SbsUpdateClusterMemberInfo($cluster_uuid));
     }
     return $response;
   }

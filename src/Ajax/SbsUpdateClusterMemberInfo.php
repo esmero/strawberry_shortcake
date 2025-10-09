@@ -13,7 +13,7 @@ use Drupal\Core\Ajax\CommandInterface;
 class SbsUpdateClusterMemberInfo implements CommandInterface {
 
   /**
-   * Model and Vector to dispatch for a View Refresh
+   * The UUID of the active Cluster.
    *
    * @var string
    */

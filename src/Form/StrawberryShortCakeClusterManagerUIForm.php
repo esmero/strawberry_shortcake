@@ -4,7 +4,9 @@ namespace Drupal\strawberry_shortcake\Form;
 
 use Drupal\Core\Ajax\HtmlCommand;
 use Drupal\Core\Entity\EntityTypeManagerInterface;
+use Drupal\Core\EventSubscriber\MainContentViewSubscriber;
 use Drupal\Core\Form\FormBase;
+use Drupal\Core\Form\FormBuilderInterface;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\Template\Attribute;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
@@ -16,6 +18,8 @@ use Drupal\Core\KeyValueStore\KeyValueFactoryInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Ajax\AjaxResponse;
 use Drupal\strawberry_shortcake\Controller\ClusterAnnotationController;
+use Drupal\Component\Utility\UrlHelper;
+
 
 /**
  * Builds the UI for Cluster export/commit
@@ -84,20 +88,24 @@ class StrawberryShortCakeClusterManagerUIForm extends FormBase {
     $img = NULL;
     // $sbf_id = $entity->id() . ':'.$sequence .':'.$translation_id.':'.$file->uuid().':'.$data->plugin_config_entity_id;
     // check if the NODE is there
-
     $splitted_id = explode(':', $id);
     $ado =  $this->entityTypeManager->getStorage('node')->load($splitted_id[0] ?? NULL);
     if ($ado) {
       $img = [
-        '#type' => 'html_tag',
-        '#tag' => 'img',
+        '#type' => 'container',
+        'cluster_member' => [
+          '#type' => 'html_tag',
+          '#tag' => 'img',
+        ]
       ];
+
       $attribute = new Attribute();
       $attribute->setAttribute('data-sbf-annotations-fileuuid', $splitted_id[3] ?? NULL);
       $attribute->setAttribute('data-sbf-annotations-flavorid', $sbf_id);
       $attribute->setAttribute('data-sbf-annotations-nodeuuid', $ado->uuid());
       $attribute->setAttribute('data-sbf-annotations-notinteractive',TRUE);
       $attribute->addClass('rounded');
+      $attribute->addClass('col');
       $url = $this->config('format_strawberryfield.iiif_settings')
         ->get('pub_server_url');
       $files = $this->entityTypeManager->getStorage('file')
@@ -113,7 +121,7 @@ class StrawberryShortCakeClusterManagerUIForm extends FormBase {
           $url = $url . "/" . urlencode($file_url) . "/full/320,/0/default.jpg";
           $attribute->setAttribute("src", $url);
           $attribute->setAttribute("id", 'sbf-cluster-entry-' . md5($sbf_id));
-          $img['#attributes'] = $attribute->toArray();
+          $img['cluster_member']['#attributes'] = $attribute->toArray();
         }
       }
       else {
@@ -125,15 +133,17 @@ class StrawberryShortCakeClusterManagerUIForm extends FormBase {
     return $img;
   }
 
-  public function buildForm(array $form, FormStateInterface $form_state, NodeInterface $node = NULL) {
+  public function buildForm(array $form, FormStateInterface $form_state) {
     $wrapper_id= 'strawberry-shortcake_ui-manager-form-wrapper';
-    $form['#prefix'] = '<div id="' . $wrapper_id . '">';
-    $form['#suffix'] = '</div>';
     $cluster_count = 0;
-
     $first_member = NULL;
     $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
+    $all_clusters_options = array_combine(array_keys($all_clusters), array_keys($all_clusters));
     $cluster_label = $form_state->getValue('shortcake_active_cluster') ?? NULL;
+    // For the pager.
+    if (!$cluster_label) {
+      $cluster_label = $this->getRequest()->query->get('active_cluster', NULL);
+    }
     if ($cluster_label && in_array($cluster_label, array_keys($all_clusters))) {
       $active_cluster = ['label' => $cluster_label, 'uuid' => $all_clusters[$cluster_label]];
     }
@@ -141,59 +151,91 @@ class StrawberryShortCakeClusterManagerUIForm extends FormBase {
       $first_cluster_label = array_key_first($all_clusters);
       $active_cluster = ['label' => $first_cluster_label, 'uuid' => $all_clusters[$first_cluster_label]];
     }
-
-
-
     if (isset($active_cluster['label']) && isset($active_cluster['uuid'])) {
       $active_cluster_label = $active_cluster['label'];
+      $active_cluster_uuid = $active_cluster['uuid'];
       $cluster_members = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get("cluster:".$active_cluster['uuid']) ?? [];
-      $member_ids = array_keys($cluster_members);
-      $first_member = reset($member_ids);
-      $cluster_count = count($cluster_members);
-    }
-    if ($first_member) {
-      $form['items'] = $this->renderItem($first_member);
-    }
+      $member_ids = array_unique(array_keys($cluster_members));
+      $cluster_count = $total_rows = count($member_ids);
 
-
-    $active_cluster_label_count = $active_cluster_label ? "true" : "false";
-    $active_cluster_label = $active_cluster_label ?? 'No Active Cluster';
-
-    $markup = '<span data-drupal-strawberry-shortcake-counter="'.$active_cluster_label_count.'" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+      $markup = '<span data-drupal-strawberry-shortcake-counter="true" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
     '.$cluster_count.'<span class="visually-hidden">'.$active_cluster_label.' Count</span>
   </span>';
-    $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
-    $all_clusters_options = array_combine(array_keys($all_clusters), array_keys($all_clusters));
+      $form['clusters']['shortcake_active_cluster'] = [
+        '#type' => 'select',
+        '#title' => $this->t('Select Clusters'),
+        '#options' => $all_clusters_options,
+        '#default_value' => $active_cluster_label,
+        '#wrapper_attributes' => [
+          'class' => ['container-inline'],
+        ],
+        '#access' => !empty($all_clusters_options),
+      ];
+      $form['clusters']['current'] = [
+        '#type' => 'item',
+        '#title' => $this->t('Editing Cluster: @label', ['@label' => $active_cluster_label]),
+        '#markup' => $markup,
+        '#wrapper_attributes' => [
+          'class' => ['container-inline bg-secondary bg-rounded position-relative'],
+        ],
+      ];
+      $form['clusters']['actions'] = [
+        '#type' => 'submit',
+        '#title' => $this->t('Select Cluster'),
+        '#value' => $this->t('Select Cluster'),
+        '#wrapper_attributes' => [
+          'class' => ['container-inline btn button btn-primary position-relative'],
+        ],
+      ];
 
-    $form['shortcake_active_cluster'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Select Clusters'),
-      '#options' => $all_clusters_options,
-      '#default_value' => $active_cluster_label,
-      '#wrapper_attributes' => [
-        'class' => ['container-inline'],
-      ],
-      '#access' => !empty($all_clusters_options),
-      '#ajax' => [
-        'callback' => '::selectCluster',
-        'event' => 'change',
-        'effect' => 'fade',
-        'wrapper' => $wrapper_id,
-      ],
-    ];
-    $form['current'] = [
-      '#type' => 'item',
-      '#title' => $this->t('Active Cluster: @label', ['@label' => $active_cluster_label]),
-      '#markup' => $markup,
-      '#wrapper_attributes' => [
-        'class' => ['container-inline btn button btn-secondary position-relative'],
-      ],
-    ];
+
+      $total_rows = $total_rows - 1;
+      $num_per_page = 10;
+      /// Drupal IS SO BAD. Ajax taints the pager. Dam
+      $pager = \Drupal::service('pager.manager')->createPager($total_rows, $num_per_page);
+      $page = $pager->getCurrentPage();
+      $offset = $num_per_page * $page;
+      $tobe_rendered_members = [];
+      if ($cluster_count > $num_per_page) {
+        // Get a slice of the array of $num_per_page size
+        // Stupid Drupal and ajax wrapper permeating over the place
+        // This sets a fixed #parameters for the wrapper so we don't keep having AJAX forms
+        // @see https://www.drupal.org/project/drupal/issues/2934463
+        $form['clusters']['#attributes']['id'] = $wrapper_id;
+        $form['clusters']['#type'] = 'container';
+        $form['clusters']['pager_top'] = [
+          '#type' => 'pager',
+          '#parameters' => ['active_cluster' => $active_cluster_label]
+        ];
+
+        $form['clusters']['offset'] = [
+          '#type' => 'value',
+          '#value' => $offset,
+        ];
+        $form['clusters']['num_per_page'] = [
+          '#type' => 'value',
+          '#value' => $num_per_page,
+        ];
+        $form['clusters']['total_rows'] = [
+          '#type' => 'value',
+          '#value' => $total_rows,
+        ];
+      }
+    }
+    $tobe_rendered_members = array_slice($member_ids, $offset, $num_per_page, FALSE);
+    if (!empty($tobe_rendered_members)) {
+      foreach($tobe_rendered_members as $id => $sbfid) {
+        if (is_string($sbfid)) {
+          $form['clusters']['items']['item' . $id] = $this->renderItem($sbfid);
+        }
+      }
+    }
 
 
 
 
     $form['#attached']['library'][] = 'strawberry_shortcake/clustering_strawberry_shortcake';
+    $form['#attached']['drupalSettings']['strawberry_shortcake']['active_cluster'] = $active_cluster['uuid'] ?? NULL;
     return $form;
   }
 
@@ -203,23 +245,7 @@ class StrawberryShortCakeClusterManagerUIForm extends FormBase {
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
-    $form_state->setRebuild();
-  }
-
-  /**
-   *
-   * @param array $form
-   *   The form array to remove elements from.
-   * @param \Drupal\Core\Form\FormStateInterface $form_state
-   *   The current state of the form.
-   *
-   * @return \Drupal\Core\Ajax\AjaxResponse
-   */
-  public function selectCluster(array &$form, FormStateInterface $form_state) {
-    $selector = '#strawberry-shortcake_ui-manager-form-wrapper';
-    $response = new AjaxResponse();
-    $response->addCommand(new HtmlCommand($selector, $form));
-    return $response;
+    $form_state->setRebuild(TRUE);
   }
 
 

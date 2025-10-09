@@ -1,7 +1,7 @@
 (function ($, Drupal,  once) {
 
   'use strict';
-  const clusterMemberInfoUpdate = function (element) {
+  const clusterMemberInfoUpdate = function (element, active_cluster_from_settings) {
     if (element.dataset.sbfClustersFlavorid) {
       const $endpoint_info = '/webannon/clustersbf/postgetinfo'
       const ajaxSettings = {
@@ -12,6 +12,9 @@
         url: '/do/' + element.dataset.sbfAnnotationsNodeuuid + $endpoint_info,
         type: 'POST',
       };
+      if (active_cluster_from_settings) {
+        ajaxSettings.data.cluster_uuid = active_cluster_from_settings;
+      }
 
       // Make a Direct AJAX to avoid a race condition when we have so little
       // Cluster elements that once runs faster and we end calling this in an eternal loop
@@ -50,7 +53,13 @@
   Drupal.behaviors.strawberry_shortcake_activate = {
     attach: function (context, settings) {
       //const visible_annotations = document.querySelectorAll('[data-sbf-annotations-flavorid]');
-
+      // When interacting via VIEWS this will be the "active" cluster from the backend
+      // But when interacting from the management form, the active need to be modal
+      // So we pass it.
+      let active_cluster_from_settings = null;
+      if (typeof (settings.strawberry_shortcake['active_cluster']) != 'undefined') {
+        active_cluster_from_settings = settings.strawberry_shortcake['active_cluster'];
+      }
 
       once('add-to-cluster','[data-sbf-annotations-flavorid]', context).forEach((element) => {
         if (element.dataset?.sbfAnnotationsFlavorid != undefined && element.dataset?.sbfAnnotationsNodeuuid != undefined) {
@@ -78,7 +87,8 @@
           label.htmlFor = checkbox.id;
           label.className = "form-check-label";
           label.appendChild(document.createTextNode('Add to Active Cluster'));
-          clusterMemberInfoUpdate(checkbox);
+
+          clusterMemberInfoUpdate(checkbox, active_cluster_from_settings);
           /* const ckeditorAjaxDialog = Drupal.ajax({
           dialog: dialogSettings,
           dialogType: 'modal',
@@ -169,7 +179,7 @@
     once.find('add-to-cluster').forEach((element) => {
       const $checkbox = document.getElementById(element.id + '-shortcake-check');
       if ($checkbox) {
-        clusterMemberInfoUpdate($checkbox);
+        clusterMemberInfoUpdate($checkbox, response.active_cluster);
       }
     });
   }
