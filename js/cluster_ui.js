@@ -1,58 +1,67 @@
 (function ($, Drupal,  once) {
 
   'use strict';
+  const clusterMemberInfoUpdate = function (element) {
+    if (element.dataset.sbfClustersFlavorid) {
+      const $endpoint_info = '/webannon/clustersbf/postgetinfo'
+      const ajaxSettings = {
+        data: {
+          flavorid: element.dataset.sbfClustersFlavorid
+        },
+        dataType: 'json',
+        url: '/do/' + element.dataset.sbfAnnotationsNodeuuid + $endpoint_info,
+        type: 'POST',
+      };
+
+      // Make a Direct AJAX to avoid a race condition when we have so little
+      // Cluster elements that once runs faster and we end calling this in an eternal loop
+      // because drupal.ajax will re-trigger the behaviors even if we are just talking to an endpoint
+
+      $.ajax(ajaxSettings).done(function(response) {
+        if (response?.incurrentcluster !== undefined) {
+          const $label = element.parentNode.querySelector('label');
+          if (response.incurrentcluster == true) {
+            element.checked = true;
+            if ($label) {
+              $label.textContent = 'In Active Cluster';
+            }
+          } else {
+            element.checked = false;
+            if ($label) {
+              $label.textContent = 'Add to Active Cluster';
+            }
+          }
+          if (Array.isArray(response?.otherclusters)) {
+            if ($label && response.otherclusters.length) {
+              $label.textContent = $label.textContent + ' (also in:' + response.otherclusters.join(", ") + ')';
+            }
+          }
+        }
+      }).fail(function(jqXHR, textStatus, errorThrown) {
+        // This function is executed if the AJAX call encounters an error (rejected)
+        console.error('Memberinfo request Failed:', textStatus, errorThrown);
+      }).always(function() {
+        // This function is always executed, regardless of success or failure
+        console.log('Finished Calling memberInfo.');
+      });
+    }
+  }
 
   Drupal.behaviors.strawberry_shortcake_activate = {
     attach: function (context, settings) {
-      const visible_annotations = document.querySelectorAll('[data-sbf-annotations-flavorid]');
-      console.log('Adding Clustering Checkboxes');
+      //const visible_annotations = document.querySelectorAll('[data-sbf-annotations-flavorid]');
 
-      const clusterMemberInfoUpdate = function (element) {
-        const $endpoint_info = '/webannon/clustersbf/postgetinfo'
-        const settings_info = {
-          submit: {
-            flavorid: element.dataset.sbfClustersFlavorid
-          },
-          base: false,
-          url: '/do/' + element.dataset.sbfAnnotationsNodeuuid + $endpoint_info,
-          element: element,
-          type: 'POST',
-          httpMethod: 'POST',
-          progress: false,
-        };
-        const getClusterMemberInfoAjax = Drupal.ajax(settings_info);
-        getClusterMemberInfoAjax.success = function (response, status) {
-          return Promise.resolve(
-            Drupal.Ajax.prototype.success.call(getClusterMemberInfoAjax, response, status),
-          ).then(() => {
-            if (status == "success" && response?.incurrentcluster !== undefined) {
-              const $label = element.parentNode.querySelector('label');
-              if (response.incurrentcluster == true) {
-                element.checked = true;
-                if ($label) {
-                  $label.textContent = 'In Active Cluster';
-                }
-              }
-              else {
-                element.checked = false;
-                if ($label) {
-                  $label.textContent = 'Add to Active Cluster';
-                }
-              }
-              if (Array.isArray(response?.otherclusters)) {
-                if ($label && response.otherclusters.length) {
-                  $label.textContent = $label.textContent + ' (also in:' + response.otherclusters.join(", ") + ')';
-                }
-              }
-            }
-          });
-        };
-        getClusterMemberInfoAjax.execute();
-      }
 
-      once('add-to-cluster',visible_annotations, context).forEach((element) => {
+      once('add-to-cluster','[data-sbf-annotations-flavorid]', context).forEach((element) => {
         if (element.dataset?.sbfAnnotationsFlavorid != undefined && element.dataset?.sbfAnnotationsNodeuuid != undefined) {
           const container = document.createElement('div')
+
+          if (context == document) {
+            console.log('Adding Clustering Checkboxes');
+          }
+          else {
+            console.log('Adding Clustering Checkboxes when getting a context context');
+          }
 
           container.className = 'js-form-item js-form-type-checkbox checkbox form-check form-switch mb-3';
           const checkbox = document.createElement('input');
@@ -86,51 +95,50 @@
             if (event.target.checked == false) {
               $endpoint = '/webannon/clustersbf/postdelete'
             }
-            const settings = {
-              submit: {
+            const ajaxSettings = {
+              data: {
                 flavorid: event.target.dataset.sbfClustersFlavorid
               },
-              base: false,
+              dataType: 'json',
               url: '/do/' + event.target.dataset.sbfAnnotationsNodeuuid + $endpoint,
-              element: event.target,
               type: 'POST',
-              httpMethod: 'POST',
-              progress: false
             };
-            const addToClusterAjax = Drupal.ajax(settings);
-            addToClusterAjax.success = function (response, status) {
-              return Promise.resolve(
-                Drupal.Ajax.prototype.success.call(addToClusterAjax, response, status),
-              ).then(() => {
-                if (status == "success" && response?.count !== undefined) {
-                  const $clusterCounterBadge = document.querySelector("#strawberry-shortcake_ui-form-wrapper [data-drupal-strawberry-shortcake-counter=true]");
-                  if ($clusterCounterBadge) {
-                    $clusterCounterBadge.innerText = response.count;
-                  }
-                  if (response?.incurrentcluster !== undefined) {
-                    const $label = event.target.parentNode.querySelector('label');
-                    if (response.incurrentcluster == true) {
-                      event.target.checked = true;
-                      if ($label) {
-                        $label.textContent = 'In Active Cluster';
-                      }
-                    }
-                    else {
-                      event.target.checked = false;
-                      if ($label) {
-                        $label.textContent = 'Add to Active Cluster';
-                      }
-                    }
-                    if (Array.isArray(response?.otherclusters)) {
-                      if ($label && response.otherclusters.length) {
-                        $label.textContent = $label.textContent + ' (also in:' + response.otherclusters.join(", ") + ')';
-                      }
-                    }
+            // Make a Direct AJAX to avoid a race condition when we have so little
+            // Cluster elements that once runs faster and we end calling this in an eternal loop
+            // because drupal.ajax will re-trigger the behaviors even if we are just talking to an endpoint
+            $.ajax(ajaxSettings).done(function(response) {
+              if (response?.count !== undefined) {
+              const $clusterCounterBadge = document.querySelector("#strawberry-shortcake_ui-form-wrapper [data-drupal-strawberry-shortcake-counter=true]");
+              if ($clusterCounterBadge) {
+                $clusterCounterBadge.innerText = response.count;
+              }
+              if (response?.incurrentcluster !== undefined) {
+                const $label = event.target.parentNode.querySelector('label');
+                if (response.incurrentcluster == true) {
+                  event.target.checked = true;
+                  if ($label) {
+                    $label.textContent = 'In Active Cluster';
                   }
                 }
-              });
-            };
-            addToClusterAjax.execute();
+                else {
+                  event.target.checked = false;
+                  if ($label) {
+                    $label.textContent = 'Add to Active Cluster';
+                  }
+                }
+                if (Array.isArray(response?.otherclusters)) {
+                  if ($label && response.otherclusters.length) {
+                    $label.textContent = $label.textContent + ' (also in:' + response.otherclusters.join(", ") + ')';
+                  }
+                }
+              }
+            }}).fail(function(jqXHR, textStatus, errorThrown) {
+              // This function is executed if the AJAX call encounters an error (rejected)
+              console.error('Cluster Item Change request Failed:', textStatus, errorThrown);
+            }).always(function() {
+              // This function is always executed, regardless of success or failure
+              console.log('Finished Cluster Change.');
+            });
 
           });
           container.appendChild(label);
@@ -138,19 +146,12 @@
           element.parentNode.parentNode.prepend(container);
         }
       });
-      // For those already executed...
-      once.find('add-to-cluster').forEach((element) => {
-        const $checkbox = document.getElementById(element.id + '-shortcake-check');
-        if ($checkbox) {
-          clusterMemberInfoUpdate($checkbox);
-        }
-      });
     }
   }
 
   /* @see \Drupal\strawberry_shortcake\Ajax\SbsBroadcastVectors */
   Drupal.AjaxCommands.prototype.SbsBroadCastVectors = function (ajax, response) {
-   console.log(response.vectors);
+    console.log(response.vectors);
     const vector_data = {
       "vectors":response.vectors,
     }
@@ -159,6 +160,18 @@
     console.log(btoa(pako.gzip(JSON.stringify(vector_data))).length);
     console.log(pako.gzip(JSON.stringify(vector_data)).length);
     Drupal.FormatStrawberryfieldIiifUtils.dispatchImageViewChange(element, btoa(pako.gzip(JSON.stringify(vector_data))));
+  }
+
+  /* @see \Drupal\strawberry_shortcake\Ajax\SbsBroadcastVectors */
+  Drupal.AjaxCommands.prototype.SbsUpdateClusterMemberInfo = function (ajax, response) {
+    console.log(response.active_cluster);
+    // For those already executed...
+    once.find('add-to-cluster').forEach((element) => {
+      const $checkbox = document.getElementById(element.id + '-shortcake-check');
+      if ($checkbox) {
+        clusterMemberInfoUpdate($checkbox);
+      }
+    });
   }
 
 })(jQuery, Drupal, once);

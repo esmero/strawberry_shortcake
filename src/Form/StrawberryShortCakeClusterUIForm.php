@@ -9,8 +9,11 @@ use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Drupal\Core\TempStore\SharedTempStoreFactory;
 use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
+use Drupal\strawberry_shortcake\Ajax\SbsBroadcastVectors;
+use Drupal\strawberry_shortcake\Ajax\SbsUpdateClusterMemberInfo;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\KeyValueStore\KeyValueFactoryInterface;
 use Drupal\strawberry_shortcake\Controller\ClusterAnnotationController;
 
 /**
@@ -46,7 +49,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
    *
    * @param \Drupal\Core\TempStore\SharedTempStoreFactory $temp_store_factory
    */
-  public function __construct(SharedTempStoreFactory $temp_store_factory, PrivateTempStoreFactory $private_temp_store_factory, $key_value) {
+  public function __construct(SharedTempStoreFactory $temp_store_factory, PrivateTempStoreFactory $private_temp_store_factory, KeyValueFactoryInterface $key_value) {
     $this->tempStoreShared = $temp_store_factory->get('strawberry_shortcake');
     $this->tempStorePrivate = $private_temp_store_factory->get('strawberry_shortcake_private');
     $this->keyValue = $key_value;
@@ -59,7 +62,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
     return new static(
       $container->get('tempstore.shared'),
       $container->get('tempstore.private'),
-      $container->get('strawberryfield.keyvalue.database')
+      $container->get('strawberryfield.keyvalue.database')  ,
     );
   }
 
@@ -263,8 +266,10 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
     $selector = '#strawberry-shortcake_ui-form-wrapper';
     $response = new AjaxResponse();
     $response->addCommand(new HtmlCommand($selector, $form));
+    $cluster_label = $form_state->getValue('shortcake_active_cluster') ?? NULL;
+    if ($cluster_label) {
+      $response->addCommand(new SbsUpdateClusterMemberInfo($cluster_label));
+    }
     return $response;
   }
-
-
 }
