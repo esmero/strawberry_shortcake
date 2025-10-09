@@ -91,11 +91,19 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
 
     $form['current'] = [
       '#type' => 'item',
-      '#title' => $this->t('Active Cluster: @label', ['@label' => $active_cluster_label]),
       '#markup' => $markup,
       '#wrapper_attributes' => [
         'class' => ['container-inline btn button btn-secondary position-relative'],
       ],
+      'link' => [
+        '#type' => 'link',
+        '#title' => $this->t('Manage Active @cluster_label', ['@cluster_label' => $active_cluster_label]),
+        '#url' => Url::fromRoute('strawberryfield_shortcake.manage_cluster_form',[],['query' => ['active_cluster' => $active_cluster_label]]),
+        '#attributes' => [
+          'target' => '_blank',
+          'title' => $this->t('Manage @cluster_label', ['@cluster_label' => $active_cluster_label])
+        ]
+      ]
     ];
     $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
     $all_clusters_options = array_combine(array_keys($all_clusters), array_keys($all_clusters));
@@ -123,18 +131,18 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
         ],
       ],
     ];
-  /*
-   * To send a single Vector, we would use something like this
-    $form['centroid'] = [
-      '#type' => 'html_tag',
-      '#tag' => 'a',
-      '#value' => "Centroid",
-      '#attributes' => [
-        'class' => ['btn' ,'btn-tertiary'],
-        'data-sbf-vector' => json_encode($avector$}
-        'data-sbf-vector-processor' => 'chained_mobilenet_child'
-      ]
-    ];*/
+    /*
+     * To send a single Vector, we would use something like this
+      $form['centroid'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'a',
+        '#value' => "Centroid",
+        '#attributes' => [
+          'class' => ['btn' ,'btn-tertiary'],
+          'data-sbf-vector' => json_encode($avector$}
+          'data-sbf-vector-processor' => 'chained_mobilenet_child'
+        ]
+      ];*/
 
     $form['centroid'] = [
       '#type' => 'submit',

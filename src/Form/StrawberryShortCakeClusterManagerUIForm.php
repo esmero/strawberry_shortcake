@@ -176,7 +176,8 @@ class StrawberryShortCakeClusterManagerUIForm extends FormBase {
         '#title' => $this->t('Active Cluster: @label', ['@label' => $active_cluster_label]),
         '#markup' => $markup,
         '#wrapper_attributes' => [
-          'class' => ['bg-info badge rounded p-3 position-relative position-relative'],
+          'class' => ['text-white badge rounded p-3 position-relative position-relative'],
+          'style' => ['background-color:var(--bs-secondary, rgb(97, 211, 157))']
         ],
       ];
       $form['clusters']['actions'] = [
