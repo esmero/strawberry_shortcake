@@ -121,10 +121,11 @@
             // because drupal.ajax will re-trigger the behaviors even if we are just talking to an endpoint
             $.ajax(ajaxSettings).done(function(response) {
               if (response?.count !== undefined) {
-              const $clusterCounterBadge = document.querySelector("#strawberry-shortcake_ui-form-wrapper [data-drupal-strawberry-shortcake-counter=true]");
-              if ($clusterCounterBadge) {
-                $clusterCounterBadge.innerText = response.count;
-              }
+              const $clusterCounterBadges = document.querySelectorAll("[data-drupal-strawberry-shortcake-counter=true]");
+                $clusterCounterBadges.forEach(function(element) {
+                  element.innerText = response.count;
+                });
+
               if (response?.incurrentcluster !== undefined) {
                 const $label = event.target.parentNode.querySelector('label');
                 if (response.incurrentcluster == true) {
