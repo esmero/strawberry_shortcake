@@ -223,6 +223,8 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
     $cluster_label = $form_state->getValue('shortcake_active_cluster') ?? NULL;
     if ($cluster_label && in_array($cluster_label, array_keys($all_clusters))) {
       $cluster_data = ['label' => $cluster_label, 'uuid' => $all_clusters[$cluster_label]];
+      $form_state->setValue('shortcake_active_cluster', $cluster_data['label']);
+      $form_state->setValue('shortcake_active_cluster_uuid', $cluster_data['uuid']);
       $this->tempStorePrivate->set('active_cluster', $cluster_data);
     }
     $form_state->setRebuild();

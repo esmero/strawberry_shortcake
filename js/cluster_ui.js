@@ -57,7 +57,7 @@
       // But when interacting from the management form, the active need to be modal
       // So we pass it.
       let active_cluster_from_settings = null;
-      if (typeof (settings.strawberry_shortcake['active_cluster']) != 'undefined') {
+      if (typeof (settings.strawberry_shortcake) != 'undefined') {
         active_cluster_from_settings = settings.strawberry_shortcake['active_cluster'];
       }
 
@@ -113,6 +113,9 @@
               url: '/do/' + event.target.dataset.sbfAnnotationsNodeuuid + $endpoint,
               type: 'POST',
             };
+            if (active_cluster_from_settings) {
+              ajaxSettings.data.cluster_uuid = active_cluster_from_settings;
+            }
             // Make a Direct AJAX to avoid a race condition when we have so little
             // Cluster elements that once runs faster and we end calling this in an eternal loop
             // because drupal.ajax will re-trigger the behaviors even if we are just talking to an endpoint

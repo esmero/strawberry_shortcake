@@ -167,12 +167,18 @@ class ClusterAnnotationController extends ControllerBase {
       }
       else {
         try {
-          $active_cluster = $this->tempStorePrivate->get('active_cluster') ?? [];
-          if (isset($active_cluster['label']) && isset($active_cluster['uuid'])) {
+          if (!empty($everything['cluster_uuid'])) {
+            $active_cluster_uuid = $everything['cluster_uuid'];
+          }
+          else {
+            $active_cluster = $this->tempStorePrivate->get('active_cluster') ?? [];
+            $active_cluster_uuid = $active_cluster['uuid'] ?? NULL;
+          }
+          if (isset($active_cluster_uuid)) {
             // We do two things (old-fashioned double hash.)
             // - We store, per cluster all member ids.
             // - We store the actual member id holding all clusters it belongs to.
-            $cluster_members = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get("cluster:" . $active_cluster['uuid']) ?? [];
+            $cluster_members = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get("cluster:" . $active_cluster_uuid) ?? [];
             $cluster_members[$flavorid] = TRUE;
             $cluster_count = count($cluster_members);
             $cluster_member_info = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get($flavorid) ?? [];
@@ -184,9 +190,9 @@ class ClusterAnnotationController extends ControllerBase {
             foreach ($cluster_member_info as $uuid => $timestamp) {
               $otherclusters[] = $all_clusters[$uuid];
             }
-            $cluster_member_info[$active_cluster['uuid']] = \Drupal::time()
+            $cluster_member_info[$active_cluster_uuid] = \Drupal::time()
               ->getRequestTime();
-            $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->set("cluster:" . $active_cluster['uuid'], $cluster_members);
+            $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->set("cluster:" . $active_cluster_uuid, $cluster_members);
             $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->set($flavorid, $cluster_member_info);
             $data = [
               'incurrentcluster' => TRUE,
@@ -246,25 +252,31 @@ class ClusterAnnotationController extends ControllerBase {
       }
       else {
         try {
-          $active_cluster = $this->tempStorePrivate->get('active_cluster') ?? [];
-          if (isset($active_cluster['label']) && isset($active_cluster['uuid'])) {
+          if (!empty($everything['cluster_uuid'])) {
+            $active_cluster_uuid = $everything['cluster_uuid'];
+          }
+          else {
+            $active_cluster = $this->tempStorePrivate->get('active_cluster') ?? [];
+            $active_cluster_uuid = $active_cluster['uuid'] ?? NULL;
+          }
+          if (isset($active_cluster_uuid)) {
             // We do two things (old-fashioned double hash.)
             // - We store, per cluster all member ids.
             // - We store the actual member id holding all clusters it belongs to.
-            $cluster_members = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get("cluster:" . $active_cluster['uuid']) ?? [];
+            $cluster_members = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get("cluster:" . $active_cluster_uuid) ?? [];
             unset($cluster_members[$flavorid]);
             $cluster_count = count($cluster_members);
             $cluster_member_info = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get($flavorid) ?? [];
             // Foreach Cluster UUID (I am  not silly to think, I can use the label as ID! but we enforce labels to be unique too)
             // We store the update time too. Might be handy?
-            unset($cluster_member_info[$active_cluster['uuid']]);
+            unset($cluster_member_info[$active_cluster_uuid]);
             if (!count($cluster_member_info)) {
               $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->delete($flavorid);
             }
             else {
               $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->set($flavorid, $cluster_member_info);
             }
-            $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->set("cluster:" . $active_cluster['uuid'], $cluster_members);
+            $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->set("cluster:" . $active_cluster_uuid, $cluster_members);
 
             $otherclusters = [];
             $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
@@ -388,7 +400,7 @@ class ClusterAnnotationController extends ControllerBase {
     try {
       if ($cluster == 'active') {
         $active_cluster = $this->tempStorePrivate->get('active_cluster') ?? [];
-        if (isset($active_cluster['label']) && isset($active_cluster['uuid'])) {
+        if (isset($active_cluster['uuid'])) {
           // We do two things (old-fashioned double hash.)
           // - We store, per cluster all member ids.
           // - We store the actual member id holding all clusters it belongs to.
