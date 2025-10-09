@@ -93,6 +93,9 @@ class StrawberryShortCakeClusterManagerUIForm extends FormBase {
     if ($ado) {
       $img = [
         '#type' => 'container',
+        '#attributes' => [
+          'class' => ['col-auto']
+        ],
         'cluster_member' => [
           '#type' => 'html_tag',
           '#tag' => 'img',
@@ -105,7 +108,7 @@ class StrawberryShortCakeClusterManagerUIForm extends FormBase {
       $attribute->setAttribute('data-sbf-annotations-nodeuuid', $ado->uuid());
       $attribute->setAttribute('data-sbf-annotations-notinteractive',TRUE);
       $attribute->addClass('rounded');
-      $attribute->addClass('col');
+
       $url = $this->config('format_strawberryfield.iiif_settings')
         ->get('pub_server_url');
       $files = $this->entityTypeManager->getStorage('file')
@@ -227,6 +230,8 @@ class StrawberryShortCakeClusterManagerUIForm extends FormBase {
     if (!empty($tobe_rendered_members)) {
       foreach($tobe_rendered_members as $id => $sbfid) {
         if (is_string($sbfid)) {
+          $form['clusters']['items']['#type'] = 'container';
+          $form['clusters']['items']['#attributes']['class'] = ['row'];
           $form['clusters']['items']['item' . $id] = $this->renderItem($sbfid);
         }
       }
