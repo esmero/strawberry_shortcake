@@ -32,7 +32,7 @@ strawberryfield_shortcake.post_delete_cluster_member:
     _permission: 'execute ML clustering'
 
 # Get from temporary (rainbow whipped cream) limbo a Cluster member's info.
-strawberryfield_shortcake.post_get_cluster_membe_info:
+strawberryfield_shortcake.post_get_cluster_member_info:
   path: '/do/{node}/webannon/clustersbf/postgetinfo'
   methods: [POST]
   defaults:
@@ -47,3 +47,22 @@ strawberryfield_shortcake.post_get_cluster_membe_info:
     _format: 'json'
     _entity_access: 'node.view'
     _permission: 'execute ML clustering'
+strawberryfield_shortcake.cluster_centroids:
+  path: '/ml/clustersbf/{cluster}/cluster_centroids'
+  methods: [GET, POST]
+  defaults:
+    _controller: '\Drupal\strawberry_shortcake\Controller\ClusterAnnotationController::calculateCentroids'
+  requirements:
+    cluster: "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|active"
+    _format: 'json'
+    _permission: 'execute ML clustering'
+
+strawberryfield_shortcake.manage_cluster_form:
+  path: '/admin/config/archipelago/strawberryshortcake_cluster'
+  defaults:
+    _form: '\Drupal\strawberry_shortcake\Form\StrawberryShortCakeClusterManagerUIForm'
+    _title: 'Manage Strawberry Shortcake Clusters'
+  requirements:
+    _permission: 'execute ML clustering'
+  options:
+    _admin_route: FALSE

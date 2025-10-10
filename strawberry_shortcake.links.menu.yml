@@ -1,0 +1,6 @@
+strawberryfield_shortcake.manage_cluster_form:
+  title: 'Manage Strawberry Shortcake Clusters'
+  route_name: strawberryfield_shortcake.manage_cluster_form
+  description: 'Manages Clusters generated via Strawberry Shortcake'
+  parent: strawberryfield.group.admin
+  weight: 99
