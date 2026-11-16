@@ -7,9 +7,14 @@ use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\Core\TempStore\PrivateTempStoreFactory;
 use Drupal\Core\TempStore\SharedTempStoreFactory;
+use Drupal\Core\Url;
 use Drupal\node\NodeInterface;
+use Drupal\strawberry_shortcake\Ajax\SbsBroadcastVectors;
+use Drupal\strawberry_shortcake\Ajax\SbsUpdateClusterMemberInfo;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\KeyValueStore\KeyValueFactoryInterface;
+use Drupal\strawberry_shortcake\Controller\ClusterAnnotationController;
 
 /**
  * Builds the basic UI for Administering Clusters
@@ -44,7 +49,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
    *
    * @param \Drupal\Core\TempStore\SharedTempStoreFactory $temp_store_factory
    */
-  public function __construct(SharedTempStoreFactory $temp_store_factory, PrivateTempStoreFactory $private_temp_store_factory, $key_value) {
+  public function __construct(SharedTempStoreFactory $temp_store_factory, PrivateTempStoreFactory $private_temp_store_factory, KeyValueFactoryInterface $key_value) {
     $this->tempStoreShared = $temp_store_factory->get('strawberry_shortcake');
     $this->tempStorePrivate = $private_temp_store_factory->get('strawberry_shortcake_private');
     $this->keyValue = $key_value;
@@ -57,7 +62,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
     return new static(
       $container->get('tempstore.shared'),
       $container->get('tempstore.private'),
-      $container->get('strawberryfield.keyvalue.database')
+      $container->get('strawberryfield.keyvalue.database')  ,
     );
   }
 
@@ -74,7 +79,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
     $active_cluster_label = $form_state->getValue('active_cluster') ?? NULL;
     if (isset($active_cluster['label']) && isset($active_cluster['uuid'])) {
       $active_cluster_label = $active_cluster['label'];
-      $cluster_members = $this->tempStoreShared->get("cluster:".$active_cluster['uuid']) ?? [];
+      $cluster_members = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTER_ITEMS_COLLECTION)->get("cluster:".$active_cluster['uuid']) ?? [];
       $cluster_count = count($cluster_members);
     }
     $active_cluster_label_count = $active_cluster_label ? "true" : "false";
@@ -86,13 +91,21 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
 
     $form['current'] = [
       '#type' => 'item',
-      '#title' => $this->t('Active Cluster: @label', ['@label' => $active_cluster_label]),
       '#markup' => $markup,
       '#wrapper_attributes' => [
         'class' => ['container-inline btn button btn-secondary position-relative'],
       ],
+      'link' => [
+        '#type' => 'link',
+        '#title' => $this->t('Manage Active @cluster_label', ['@cluster_label' => $active_cluster_label]),
+        '#url' => Url::fromRoute('strawberryfield_shortcake.manage_cluster_form',[],['query' => ['active_cluster' => $active_cluster_label]]),
+        '#attributes' => [
+          'target' => '_blank',
+          'title' => $this->t('Manage @cluster_label', ['@cluster_label' => $active_cluster_label])
+        ]
+      ]
     ];
-    $all_clusters = $this->tempStoreShared->get('all_clusters') ?? [];
+    $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
     $all_clusters_options = array_combine(array_keys($all_clusters), array_keys($all_clusters));
     $form['shortcake_active_cluster'] = [
       '#type' => 'select',
@@ -117,6 +130,30 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
           ':input[name="shortcake_active_cluster"]' => ['value' => ''],
         ],
       ],
+    ];
+    /*
+     * To send a single Vector, we would use something like this
+      $form['centroid'] = [
+        '#type' => 'html_tag',
+        '#tag' => 'a',
+        '#value' => "Centroid",
+        '#attributes' => [
+          'class' => ['btn' ,'btn-tertiary'],
+          'data-sbf-vector' => json_encode($avector$}
+          'data-sbf-vector-processor' => 'chained_mobilenet_child'
+        ]
+      ];*/
+
+    $form['centroid'] = [
+      '#type' => 'submit',
+      '#value' => "Calculate Centroid for Active Cluster",
+      '#ajax' => [
+        'callback' => 'Drupal\strawberry_shortcake\Controller\ClusterAnnotationController::calculateCentroids',
+        'url' =>  Url::fromRoute('strawberryfield_shortcake.cluster_centroids',['cluster' => 'active']),
+      ],
+      '#attributes' => [
+        'class' => ['btn' ,'btn-tertiary'],
+      ]
     ];
 
     $form['actions']['#type'] = 'actions';
@@ -166,7 +203,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    */
   public function submitFormCreate(array &$form, FormStateInterface $form_state) {
-    $all_clusters = $this->tempStoreShared->get('all_clusters') ?? [];
+    $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
     $cluster_label = trim(($form_state->getValue('new_cluster') ?? ''));
     if (in_array($cluster_label, array_keys($all_clusters))) {
       $cluster_data = ['label' => $cluster_label, 'uuid' => $all_clusters[$cluster_label]];
@@ -179,8 +216,9 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
       $all_clusters = $all_clusters + [$cluster_data['label'] => $cluster_data['uuid']];
     }
     $this->tempStorePrivate->set('active_cluster', $cluster_data);
-    $this->tempStoreShared->set('all_clusters', $all_clusters);
+    $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->set('all_clusters', $all_clusters);
     $form_state->setValue('shortcake_active_cluster', $cluster_data['label']);
+    $form_state->setValue('shortcake_active_cluster_uuid', $cluster_data['uuid']);
     $form_state->setRebuild();
   }
 
@@ -189,10 +227,12 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
    * @param \Drupal\Core\Form\FormStateInterface $form_state
    */
   public function selectFormCreate(array &$form, FormStateInterface $form_state) {
-    $all_clusters = $this->tempStoreShared->get('all_clusters') ?? [];
+    $all_clusters = $this->keyValue->get(ClusterAnnotationController::SBS_CLUSTERS_COLLECTION)->get('all_clusters') ?? [];
     $cluster_label = $form_state->getValue('shortcake_active_cluster') ?? NULL;
     if ($cluster_label && in_array($cluster_label, array_keys($all_clusters))) {
       $cluster_data = ['label' => $cluster_label, 'uuid' => $all_clusters[$cluster_label]];
+      $form_state->setValue('shortcake_active_cluster', $cluster_data['label']);
+      $form_state->setValue('shortcake_active_cluster_uuid', $cluster_data['uuid']);
       $this->tempStorePrivate->set('active_cluster', $cluster_data);
     }
     $form_state->setRebuild();
@@ -237,8 +277,10 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
     $selector = '#strawberry-shortcake_ui-form-wrapper';
     $response = new AjaxResponse();
     $response->addCommand(new HtmlCommand($selector, $form));
+    $cluster_uuid = $form_state->getValue('shortcake_active_cluster_uuid') ?? NULL;
+    if ($cluster_uuid) {
+      $response->addCommand(new SbsUpdateClusterMemberInfo($cluster_uuid));
+    }
     return $response;
   }
-
-
 }
