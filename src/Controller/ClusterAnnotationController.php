@@ -209,7 +209,7 @@ class ClusterAnnotationController extends ControllerBase {
           }
         }
         catch
-        (\Drupal\Core\TempStore\TempStoreException $exception) {
+        (\Drupal\Core\TempStore\TempStoreException) {
           $data = [
             'success' => FALSE
           ];
@@ -300,7 +300,7 @@ class ClusterAnnotationController extends ControllerBase {
           }
         }
         catch
-        (\Drupal\Core\TempStore\TempStoreException $exception) {
+        (\Drupal\Core\TempStore\TempStoreException) {
           $data = [
             'success' => FALSE
           ];
@@ -374,7 +374,7 @@ class ClusterAnnotationController extends ControllerBase {
             'success' => TRUE
           ];
         }
-        catch (\Drupal\Core\TempStore\TempStoreException $exception) {
+        catch (\Drupal\Core\TempStore\TempStoreException) {
           $data = [
             'success' => FALSE
           ];

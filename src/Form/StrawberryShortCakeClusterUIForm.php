@@ -32,13 +32,6 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
   /**
    * Key value service.
    *
-   * @var \Drupal\Core\KeyValueStore\KeyValueFactoryInterface
-   */
-  protected \Drupal\Core\KeyValueStore\KeyValueFactoryInterface $keyValue;
-
-  /**
-   * Key value service.
-   *
    * @var \Drupal\Core\TempStore\PrivateTempStore
    */
   protected \Drupal\Core\TempStore\PrivateTempStore $tempStorePrivate;
@@ -48,11 +41,14 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
    * Constructs The shortcake UI
    *
    * @param \Drupal\Core\TempStore\SharedTempStoreFactory $temp_store_factory
+   * @param \Drupal\Core\KeyValueStore\KeyValueFactoryInterface $key_value
    */
-  public function __construct(SharedTempStoreFactory $temp_store_factory, PrivateTempStoreFactory $private_temp_store_factory, KeyValueFactoryInterface $key_value) {
+  public function __construct(SharedTempStoreFactory $temp_store_factory, PrivateTempStoreFactory $private_temp_store_factory, /**
+   * Key value service.
+   */
+  protected \Drupal\Core\KeyValueStore\KeyValueFactoryInterface $keyValue) {
     $this->tempStoreShared = $temp_store_factory->get('strawberry_shortcake');
     $this->tempStorePrivate = $private_temp_store_factory->get('strawberry_shortcake_private');
-    $this->keyValue = $key_value;
   }
 
   /**
@@ -70,7 +66,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
     return 'strawberry_shortcake_ui_form';
   }
 
-  public function buildForm(array $form, FormStateInterface $form_state, NodeInterface $node = NULL) {
+  public function buildForm(array $form, FormStateInterface $form_state, ?NodeInterface $node = NULL) {
     $wrapper_id= 'strawberry-shortcake_ui-form-wrapper';
     $form['#prefix'] = '<div id="' . $wrapper_id . '">';
     $form['#suffix'] = '</div>';
@@ -83,7 +79,7 @@ class StrawberryShortCakeClusterUIForm extends FormBase {
       $cluster_count = count($cluster_members);
     }
     $active_cluster_label_count = $active_cluster_label ? "true" : "false";
-    $active_cluster_label = $active_cluster_label ?? 'No Active Cluster';
+    $active_cluster_label ??= 'No Active Cluster';
 
     $markup = '<span data-drupal-strawberry-shortcake-counter="'.$active_cluster_label_count.'" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
     '.$cluster_count.'<span class="visually-hidden">'.$active_cluster_label.' Count</span>

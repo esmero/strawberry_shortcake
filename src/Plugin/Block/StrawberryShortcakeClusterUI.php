@@ -27,14 +27,8 @@ use Drupal\strawberry_shortcake\Form\StrawberryShortCakeClusterUIForm;
 
 class StrawberryShortcakeClusterUI extends BlockBase implements ContainerFactoryPluginInterface {
 
-  /**
-   * @var \Drupal\Core\Form\FormBuilderInterface
-   */
-  private FormBuilderInterface $formBuilder;
-
-  public function __construct(array $configuration, $plugin_id, $plugin_definition, FormBuilderInterface $form_builder) {
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, private readonly FormBuilderInterface $formBuilder) {
     parent::__construct($configuration, $plugin_id, $plugin_definition);
-    $this->formBuilder = $form_builder;
   }
 
   /**
