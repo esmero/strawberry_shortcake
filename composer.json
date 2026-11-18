@@ -13,9 +13,9 @@
         }
     ],
     "require": {
-        "strawberryfield/strawberryfield":"1.5.0.x-dev",
-        "strawberryfield/format_strawberryfield":"1.5.0.x-dev",
-        "strawberryfield/strawberry_runners":"0.9.0.x-dev",
+        "strawberryfield/strawberryfield":">=1.5.0.x-dev",
+        "strawberryfield/format_strawberryfield":">=1.5.0.x-dev",
+        "strawberryfield/strawberry_runners":">=0.9.0.x-dev",
         "ext-json": "*"
     },
     "conflict": {
